@@ -51,14 +51,14 @@ fn read_one_request(stream: &mut TcpStream) -> Option<Vec<u8>> {
 
 fn build_response(payload: Vec<u8>) -> Vec<u8> {
     println!("building response");
-    let correlation_id_bytes: [u8; 4] = payload[8..12].try_into().unwrap();
+    let correlation_id_bytes: [u8; 4] = payload[4..8].try_into().unwrap();
     // let correlation_id = i32::from_be_bytes(correlation_id_bytes);
-    let api_key_bytes: [u8; 2] = payload[4..6].try_into().unwrap();
+    let api_key_bytes: [u8; 2] = payload[0..2].try_into().unwrap();
     // Convert big-endian bytes to 32-bits integer
     let api_key = i16::from_be_bytes(api_key_bytes);
     let api_keys_arr = api_versions_response(api_key);
     let api_keys_byte = serialize_api_keys(&api_keys_arr);
-    let api_version_bytes: [u8; 2] = payload[6..8].try_into().unwrap();
+    let api_version_bytes: [u8; 2] = payload[2..4].try_into().unwrap();
     let api_version = i16::from_be_bytes(api_version_bytes);
     let error_code: [u8; 2] = check_valid_api_version(api_version);
 
