@@ -1,6 +1,5 @@
 #![allow(unused_imports)]
 use std::convert::TryInto;
-use std::fmt::write;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpListener;
@@ -36,10 +35,21 @@ fn handle_stream(mut stream: &TcpStream) {
     // let message_size = i32::from_be_bytes(message_size_bytes);
     let correlation_id_bytes: [u8; 4] = buffer[8..12].try_into().unwrap();
     // let correlation_id = i32::from_be_bytes(correlation_id_bytes);
+    let api_version_bytes: [u8; 2] = buffer[6..8].try_into().unwrap();
+    let api_version = i16::from_be_bytes(api_version_bytes);
+    let error_code: [u8; 2] = check_valid_api_version(api_version);
 
     // Build the [u8; 8] but since this project will grow I will use Vec<u8>
     let mut response: Vec<u8> = Vec::new();
     response.extend_from_slice(&message_size_bytes);
     response.extend_from_slice(&correlation_id_bytes);
+    response.extend_from_slice(&error_code);
     let _ = stream.write(&response);
+}
+
+fn check_valid_api_version(version: i16) -> [u8; 2] {
+    println!("checking api version");
+    let error_code: i16 = if (0..=4).contains(&version) { 0 } else { 35 };
+    let error_code_bytes: [u8; 2] = i16::to_be_bytes(error_code);
+    error_code_bytes
 }
