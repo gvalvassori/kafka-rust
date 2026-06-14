@@ -47,14 +47,18 @@ fn handle_stream(mut stream: &TcpStream) {
     let tagged_fields: i8 = 0; // Placeholder
 
     // Build the [u8; 8] but since this project will grow I will use Vec<u8>
+    let mut body: Vec<u8> = Vec::new();
+    body.extend_from_slice(&correlation_id_bytes);
+    body.extend_from_slice(&error_code);
+    body.extend_from_slice(&api_keys_byte);
+    body.extend_from_slice(&throttle_time_ms.to_be_bytes());
+    body.extend_from_slice(&tagged_fields.to_be_bytes());
+
+    let message_size: i32 = body.len() as i32;
+
     let mut response: Vec<u8> = Vec::new();
-    response.extend_from_slice(&message_size_bytes); // placeholder, later I will compute the
-    // response body size
-    response.extend_from_slice(&correlation_id_bytes);
-    response.extend_from_slice(&error_code);
-    response.extend_from_slice(&api_keys_byte);
-    response.extend_from_slice(&throttle_time_ms.to_be_bytes());
-    response.extend_from_slice(&tagged_fields.to_be_bytes());
+    response.extend_from_slice(&message_size.to_be_bytes());
+    response.extend_from_slice(&body);
     let _ = stream.write(&response);
 }
 
