@@ -1,9 +1,8 @@
 #![allow(unused_imports)]
 use std::convert::TryInto;
-use std::io::Read;
-use std::io::Write;
-use std::net::TcpListener;
-use std::net::TcpStream;
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
+use std::thread;
 
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -17,7 +16,7 @@ fn main() {
         match stream {
             Ok(mut stream) => {
                 println!("accepted new connection");
-                handle_stream(&mut stream);
+                thread::spawn(move || handle_stream(&mut stream));
             }
             Err(e) => {
                 println!("error: {}", e);
