@@ -1,4 +1,5 @@
 use crate::describe_topic_partitions::describe_topic_partitions_keys;
+use crate::encoder::Encode;
 
 pub struct ApiKeys {
     pub api_key: i16,
@@ -6,29 +7,68 @@ pub struct ApiKeys {
     pub max_version: i16,
 }
 
-pub fn check_valid_api_version(version: i16) -> [u8; 2] {
+impl ApiKeys {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut out: Vec<u8> = Vec::new();
+        out.extend_from_slice(&self.api_key.to_be_bytes());
+        out.extend_from_slice(&self.min_version.to_be_bytes());
+        out.extend_from_slice(&self.max_version.to_be_bytes());
+        out.push(0u8);
+        out
+    }
+}
+
+pub struct ApiVersionsResponse {
+    error_code: i16,
+    api_keys: Vec<ApiKeys>,
+}
+
+fn check_valid_api_version(version: i16) -> i16 {
     println!("checking api version");
     let error_code: i16 = if (0..=4).contains(&version) { 0 } else { 35 };
-    let error_code_bytes: [u8; 2] = i16::to_be_bytes(error_code);
-    error_code_bytes
+    error_code
 }
 
-pub fn serialize_api_keys(api_keys: &[ApiKeys]) -> Vec<u8> {
-    let mut out: Vec<u8> = Vec::new();
-    out.push((api_keys.len() + 1) as u8);
-    for api_key in api_keys {
-        out.extend_from_slice(&api_key.api_key.to_be_bytes());
-        out.extend_from_slice(&api_key.min_version.to_be_bytes());
-        out.extend_from_slice(&api_key.max_version.to_be_bytes());
-        out.push(0u8);
+pub fn build_apiversions_response(api_version: i16) -> ApiVersionsResponse {
+    let error_code = check_valid_api_version(api_version);
+    let api_keys = api_versions_response();
+    ApiVersionsResponse {
+        error_code,
+        api_keys,
     }
-    out
 }
 
-pub fn api_versions_key() -> ApiKeys {
+fn api_versions_response() -> Vec<ApiKeys> {
+    println!("api versions response");
+    let available_apis: Vec<fn() -> ApiKeys> =
+        vec![api_versions_key, describe_topic_partitions_keys];
+    let api_keys: Vec<ApiKeys> = available_apis.iter().map(|build| build()).collect();
+    api_keys
+}
+
+fn api_versions_key() -> ApiKeys {
     ApiKeys {
         api_key: 18,
         min_version: 0,
         max_version: 4,
+    }
+}
+
+impl Encode for ApiVersionsResponse {
+    fn encode(&self, correlation_id: i32) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::new();
+        encoded.extend_from_slice(&correlation_id.to_be_bytes());
+        // encoded.push(0u8); Comented out this is for v1 response, not needed now
+        encoded.extend_from_slice(&self.error_code.to_be_bytes());
+        let api_keys_len = self.api_keys.len();
+        encoded.push((api_keys_len + 1) as u8);
+        for api_key in &self.api_keys {
+            encoded.extend_from_slice(&api_key.to_bytes());
+        }
+        // TODO: remove hardcoded throttle_time_ms
+        let throttle_time_ms: i32 = 0;
+        encoded.extend_from_slice(&throttle_time_ms.to_be_bytes());
+        encoded.push(0u8);
+        encoded
     }
 }
