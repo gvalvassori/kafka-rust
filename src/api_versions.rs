@@ -1,5 +1,6 @@
 use crate::describe_topic_partitions::describe_topic_partitions_keys;
 use crate::encoder::Encode;
+use crate::fetch::fetch_keys;
 
 pub struct ApiKeys {
     pub api_key: i16,
@@ -41,7 +42,7 @@ pub fn build_apiversions_response(api_version: i16) -> ApiVersionsResponse {
 fn api_versions_response() -> Vec<ApiKeys> {
     println!("api versions response");
     let available_apis: Vec<fn() -> ApiKeys> =
-        vec![api_versions_key, describe_topic_partitions_keys];
+        vec![api_versions_key, describe_topic_partitions_keys, fetch_keys];
     let api_keys: Vec<ApiKeys> = available_apis.iter().map(|build| build()).collect();
     api_keys
 }

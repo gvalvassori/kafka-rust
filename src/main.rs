@@ -4,6 +4,7 @@ mod byte_cursor;
 mod describe_topic_partitions;
 mod dispatch;
 mod encoder;
+mod fetch;
 mod log_reader;
 mod stream;
 
