@@ -140,6 +140,8 @@ pub fn build_describe_response(
         });
     }
 
+    topics_arr.sort_by_key(|t| t.name.clone());
+
     Ok(DescribeTopicPartitionsResponse {
         throttle_time_ms: 0,
         topics: topics_arr,
