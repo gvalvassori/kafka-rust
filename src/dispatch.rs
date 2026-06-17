@@ -1,9 +1,8 @@
 use crate::api_versions::{ApiKeys, ApiVersionsResponse, build_apiversions_response};
 use crate::byte_cursor::Buf;
-use crate::describe_topic_partitions::{
-    DescribeTopicPartitionsResponse, build_describe_response, describe_topic_partitions_keys,
-};
+use crate::describe_topic_partitions::{DescribeTopicPartitionsResponse, build_describe_response};
 use crate::encoder::Encode;
+use crate::fetch::{FetchResponse, build_fetch_response};
 use std::io;
 
 struct Header {
@@ -18,6 +17,7 @@ struct Header {
 enum ApiResponse {
     ApiVersions(ApiVersionsResponse),
     DescribeTopicPartitions(DescribeTopicPartitionsResponse),
+    Fetch(FetchResponse),
 }
 
 impl Encode for ApiResponse {
@@ -25,6 +25,7 @@ impl Encode for ApiResponse {
         match self {
             ApiResponse::ApiVersions(r) => r.encode(correlation_id),
             ApiResponse::DescribeTopicPartitions(d) => d.encode(correlation_id),
+            ApiResponse::Fetch(f) => f.encode(correlation_id),
         }
     }
 }
@@ -56,6 +57,7 @@ pub fn build_response(payload: Vec<u8>) -> Result<Vec<u8>, io::Error> {
     let api_response = match header.api_key {
         18 => ApiResponse::ApiVersions(build_apiversions_response(header.api_version)),
         75 => ApiResponse::DescribeTopicPartitions(build_describe_response(&mut buf)?),
+        1 => ApiResponse::Fetch(build_fetch_response(&mut buf)?),
         _ => {
             panic!("api_key {} not yet implemented", header.api_key);
         }
