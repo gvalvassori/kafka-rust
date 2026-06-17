@@ -7,8 +7,16 @@ pub fn handle_stream(stream: &mut TcpStream) {
     println!("handling stream");
 
     while let Some(body) = read_one_request(stream) {
-        let response = build_response(body);
-        let _ = stream.write_all(&response);
+        match build_response(body) {
+            Ok(response) => {
+                if let Err(e) = stream.write_all(&response) {
+                    eprintln!("error writing response {}", e);
+                };
+            }
+            Err(e) => {
+                eprintln!("error building response {}", e);
+            }
+        }
     }
 }
 

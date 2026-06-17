@@ -24,6 +24,14 @@ impl Buf {
         data_i16
     }
 
+    pub fn read_i8(&mut self) -> i8 {
+        let data = &self.bytes[self.pos..self.pos + 1];
+        let data_bytes_arr: [u8; 1] = data.try_into().unwrap();
+        let data_i8 = i8::from_be_bytes(data_bytes_arr);
+        self.pos += 1;
+        data_i8
+    }
+
     // pub fn read_u32(&mut self) -> u32 {
     //     let data = &self.bytes[self.pos..self.pos + 4];
     //     let data_bytes_arr: [u8; 4] = data.try_into().unwrap();
@@ -40,8 +48,16 @@ impl Buf {
         data_i32
     }
 
+    pub fn read_i64(&mut self) -> i64 {
+        let data = &self.bytes[self.pos..self.pos + 8];
+        let data_bytes_arr: [u8; 8] = data.try_into().unwrap();
+        let data_i64 = i64::from_be_bytes(data_bytes_arr);
+        self.pos += 8;
+        data_i64
+    }
+
     pub fn read_compact_string(&mut self) -> Option<String> {
-        let size = self.read_u8();
+        let size = self.read_varint_unsigned();
 
         if size == 0 {
             None
@@ -57,11 +73,59 @@ impl Buf {
 
     pub fn read_compact_array_len(&mut self) -> usize {
         let size = self.read_u8();
+        if size == 0 {
+            panic!("compact array of size {}", size)
+        }
         (size - 1) as usize
     }
 
     pub fn skip(&mut self, n: usize) {
         // this is to skip client_id and TAG_BUFFER that are not used for now
         self.pos += n;
+    }
+
+    pub fn read_varint_unsigned(&mut self) -> u64 {
+        let mut result: u64 = 0;
+        let mut shift: u32 = 0;
+
+        loop {
+            let byte = self.read_u8();
+            result |= ((byte & 0x7F) as u64) << shift;
+            if (byte & 0x80) == 0 {
+                break;
+            }
+            shift += 7
+        }
+        result
+    }
+
+    pub fn read_varint(&mut self) -> i64 {
+        let result: i64;
+        let varint = self.read_varint_unsigned();
+        if varint % 2 == 0 {
+            result = (varint / 2) as i64;
+        } else {
+            result = -((varint + 1) as i64) / 2;
+        }
+        result
+    }
+
+    pub fn read_uuid(&mut self) -> [u8; 16] {
+        let data = &self.bytes[self.pos..self.pos + 16];
+        let uuid: [u8; 16] = data.try_into().unwrap();
+        self.pos += 16;
+        uuid
+    }
+
+    pub fn has_remaining(&self) -> bool {
+        self.pos < self.bytes.len()
+    }
+
+    pub fn pos(&self) -> usize {
+        self.pos
+    }
+
+    pub fn set_pos(&mut self, pos: usize) {
+        self.pos = pos;
     }
 }

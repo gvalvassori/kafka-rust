@@ -4,6 +4,7 @@ mod byte_cursor;
 mod describe_topic_partitions;
 mod dispatch;
 mod encoder;
+mod log_reader;
 mod stream;
 
 use crate::stream::handle_stream;

@@ -4,6 +4,7 @@ use crate::describe_topic_partitions::{
     DescribeTopicPartitionsResponse, build_describe_response, describe_topic_partitions_keys,
 };
 use crate::encoder::Encode;
+use std::io;
 
 struct Header {
     api_key: i16,
@@ -47,14 +48,14 @@ fn parse_header(buf: &mut Buf) -> Header {
     }
 }
 
-pub fn build_response(payload: Vec<u8>) -> Vec<u8> {
+pub fn build_response(payload: Vec<u8>) -> Result<Vec<u8>, io::Error> {
     println!("building response");
     let mut buf = Buf::new(payload);
     let header = parse_header(&mut buf);
 
     let api_response = match header.api_key {
         18 => ApiResponse::ApiVersions(build_apiversions_response(header.api_version)),
-        75 => ApiResponse::DescribeTopicPartitions(build_describe_response(&mut buf)),
+        75 => ApiResponse::DescribeTopicPartitions(build_describe_response(&mut buf)?),
         _ => {
             panic!("api_key {} not yet implemented", header.api_key);
         }
@@ -66,5 +67,5 @@ pub fn build_response(payload: Vec<u8>) -> Vec<u8> {
     let mut response: Vec<u8> = Vec::new();
     response.extend_from_slice(&message_size.to_be_bytes());
     response.extend_from_slice(&body);
-    response
+    Ok(response)
 }

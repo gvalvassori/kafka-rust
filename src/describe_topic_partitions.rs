@@ -1,6 +1,8 @@
 use crate::api_versions::ApiKeys;
 use crate::byte_cursor::Buf;
 use crate::encoder::Encode;
+use crate::log_reader::{PartitionRecord, read_file, read_records};
+use std::io;
 
 pub struct Partition {
     error_code: i16,
@@ -26,12 +28,17 @@ impl Partition {
         out.extend_from_slice(&self.vec_to_bytes(self.eligible_leader_replicas.clone()));
         out.extend_from_slice(&self.vec_to_bytes(self.last_known_elr.clone()));
         out.extend_from_slice(&self.vec_to_bytes(self.offline_replicas.clone()));
+        out.push(0u8);
         out
     }
 
     fn vec_to_bytes(&self, vector: Vec<i32>) -> Vec<u8> {
-        let bytes: Vec<u8> = vector.iter().flat_map(|&x| x.to_be_bytes()).collect();
-        bytes
+        let mut out: Vec<u8> = Vec::new();
+        out.push((vector.len() + 1) as u8);
+        for v in &vector {
+            out.extend_from_slice(&v.to_be_bytes());
+        }
+        out
     }
 }
 
@@ -88,33 +95,56 @@ pub fn describe_topic_partitions_keys() -> ApiKeys {
     }
 }
 
-pub fn build_describe_response(buf: &mut Buf) -> DescribeTopicPartitionsResponse {
+pub fn build_describe_response(
+    buf: &mut Buf,
+) -> Result<DescribeTopicPartitionsResponse, io::Error> {
+    let bytes =
+        read_file("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")?;
+    let records = read_records(bytes);
     let topics_len = buf.read_compact_array_len();
     let mut topics_arr: Vec<Topic> = Vec::new();
 
     for _ in 0..topics_len {
-        let partitions = vec![]; // This is an empty partitions for now
         let topic_name = buf.read_compact_string();
         buf.skip(1);
 
-        // Topic hardcoded for now
-        let topic = Topic {
-            error_code: 3,
+        let (topic_id, error, partitions_record) =
+            match records.find_topic(topic_name.as_deref().unwrap()) {
+                Some(t) => (t.topic_id, 0 as i16, records.find_partitions(t.topic_id)),
+                None => ([0u8; 16], 3 as i16, vec![] as Vec<&PartitionRecord>),
+            };
+
+        let mut partitions: Vec<Partition> = Vec::new();
+
+        for partition in partitions_record {
+            partitions.push(Partition {
+                error_code: error,
+                partition_index: partition.partition_id,
+                leader_id: partition.leader,
+                leader_epoch: partition.leader_epoch,
+                replica_nodes: partition.replicas.clone(),
+                isr_nodes: partition.isr.clone(),
+                eligible_leader_replicas: partition.eligible_leader_replicas.clone(),
+                last_known_elr: partition.last_known_elr.clone(),
+                offline_replicas: vec![],
+            })
+        }
+
+        topics_arr.push(Topic {
+            topic_id,
+            error_code: error,
             name: topic_name,
-            topic_id: [0u8; 16],
             is_internal: false,
             partitions,
             topic_authorized_operations: 0,
-        };
-
-        topics_arr.push(topic);
+        });
     }
 
-    DescribeTopicPartitionsResponse {
+    Ok(DescribeTopicPartitionsResponse {
         throttle_time_ms: 0,
         topics: topics_arr,
         next_cursor: -1,
-    }
+    })
 }
 
 impl Encode for DescribeTopicPartitionsResponse {
