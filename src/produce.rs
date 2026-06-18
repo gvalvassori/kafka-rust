@@ -106,7 +106,7 @@ pub fn build_produce_response(buf: &mut Buf) -> Result<ProduceResponse, io::Erro
                 // Read records bytes to store in disk
                 let records_len = buf.read_compact_array_len();
                 let records_bytes = buf.read_size(records_len);
-                buf.skip(1);
+                buf.skip(1); // NOTE: TAG_BUFFER of each partition
                 let dir = format!("/tmp/kraft-combined-logs/{}-{}", name, partition_id);
                 fs::create_dir_all(&dir)?;
                 let file_path = format!("{}/00000000000000000000.log", dir);
@@ -138,9 +138,11 @@ pub fn build_produce_response(buf: &mut Buf) -> Result<ProduceResponse, io::Erro
                 topic_name: name.to_string(),
                 partitions,
             };
+            buf.skip(1); // NOTE: TAG_BUFFER of each topic
             topics.push(topic);
         }
     }
+    buf.skip(1); // NOTE: TAG_BUFFER of each topic
 
     Ok(ProduceResponse {
         topics,
