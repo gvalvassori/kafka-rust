@@ -91,18 +91,22 @@ pub fn build_produce_response(buf: &mut Buf) -> Result<ProduceResponse, io::Erro
     let error_code: i16 = 0;
 
     let mut topics: Vec<Topic> = Vec::new();
+    eprintln!("[parse] pos={} reading field=topics len", buf.pos());
     let topics_len = buf.read_compact_array_len();
     for _ in 0..topics_len {
         let topic_name = buf.read_compact_string();
         if let Some(name) = topic_name.as_deref() {
             let mut partitions: Vec<Partition> = Vec::new();
+            eprintln!("[parse] pos={} reading field=partitions_len", buf.pos());
             let partitions_len = buf.read_compact_array_len();
-            for _ in 0..partitions_len {
+            for i in 0..partitions_len {
+                eprintln!("[parse] processing partition i={}", i);
                 let partition_id = buf.read_i32();
 
                 // Read records bytes to store in disk
                 let records_len = buf.read_compact_array_len();
                 let records_bytes = buf.read_size(records_len);
+                buf.skip(1);
                 let dir = format!("/tmp/kraft-combined-logs/{}-{}", name, partition_id);
                 fs::create_dir_all(&dir)?;
                 let file_path = format!("{}/00000000000000000000.log", dir);
