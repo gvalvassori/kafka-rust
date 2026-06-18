@@ -1,6 +1,6 @@
 use crate::api_versions::ApiKeys;
 use crate::byte_cursor::Buf;
-use crate::encoder::Encode;
+use crate::encoder::{Encode, encode_unsigned_varint};
 use crate::log_reader::{read_file, read_records};
 use std::io;
 
@@ -67,7 +67,8 @@ impl Encode for FetchResponse {
                 match &partition.records {
                     None => encoded.push(0),
                     Some(bytes) => {
-                        encoded.push((bytes.len() + 1) as u8);
+                        encoded
+                            .extend_from_slice(&encode_unsigned_varint((bytes.len() + 1) as u32));
                         encoded.extend_from_slice(bytes);
                     }
                 }
