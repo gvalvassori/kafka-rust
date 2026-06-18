@@ -72,7 +72,7 @@ impl Buf {
     }
 
     pub fn read_compact_array_len(&mut self) -> usize {
-        let size = self.read_u8();
+        let size = self.read_varint_unsigned();
         if size == 0 {
             panic!("compact array of size {}", size)
         }
@@ -127,5 +127,11 @@ impl Buf {
 
     pub fn set_pos(&mut self, pos: usize) {
         self.pos = pos;
+    }
+
+    pub fn read_size(&mut self, n: usize) -> Vec<u8> {
+        let data = &self.bytes[self.pos..self.pos + n];
+        self.pos += n;
+        data.to_vec()
     }
 }

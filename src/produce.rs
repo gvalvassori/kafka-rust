@@ -2,7 +2,7 @@ use crate::api_versions::ApiKeys;
 use crate::byte_cursor::Buf;
 use crate::encoder::{Encode, encode_unsigned_varint};
 use crate::log_reader::{read_file, read_records};
-use std::io;
+use std::{fs, io};
 
 pub struct Partition {
     partition_id: i32,
@@ -100,6 +100,14 @@ pub fn build_produce_response(buf: &mut Buf) -> Result<ProduceResponse, io::Erro
             for _ in 0..partitions_len {
                 let partition_id = buf.read_i32();
 
+                // Read records bytes to store in disk
+                let records_len = buf.read_compact_array_len();
+                let records_bytes = buf.read_size(records_len);
+                let dir = format!("/tmp/kraft-combined-logs/{}-{}", name, partition_id);
+                fs::create_dir_all(&dir)?;
+                let file_path = format!("{}/00000000000000000000.log", dir);
+                fs::write(&file_path, records_bytes)?;
+
                 let partition = match log_records.find_topic_and_partition(name, partition_id) {
                     Some((t, p)) => Partition {
                         partition_id,
@@ -126,7 +134,6 @@ pub fn build_produce_response(buf: &mut Buf) -> Result<ProduceResponse, io::Erro
                 topic_name: name.to_string(),
                 partitions,
             };
-            // TODO: read the whole record batch array
             topics.push(topic);
         }
     }
