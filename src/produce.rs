@@ -105,7 +105,7 @@ pub fn build_produce_response(buf: &mut Buf) -> Result<ProduceResponse, io::Erro
                         partition_id,
                         error_code: 0,
                         base_offset: 0,
-                        log_append_time: 0,
+                        log_append_time: -1,
                         log_start_offset: 0,
                         records: vec![],
                         error_message: None,
