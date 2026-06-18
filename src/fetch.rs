@@ -63,7 +63,6 @@ impl Encode for FetchResponse {
                     encoded.extend_from_slice(&at.first_offset.to_be_bytes());
                 }
                 encoded.extend_from_slice(&partition.preferred_read_replica.to_be_bytes());
-                encoded.extend_from_slice(&partition.partition_index.to_be_bytes());
                 // NOTE: Since Partition.records can be Option we match to hanlde this
                 match &partition.records {
                     None => encoded.push(0),
@@ -72,7 +71,9 @@ impl Encode for FetchResponse {
                         encoded.extend_from_slice(bytes);
                     }
                 }
+                encoded.push(0u8); // TODO: This is the TAG_BUFFER, I may need to remove it later
             }
+            encoded.push(0u8); // TODO: This is the TAG_BUFFER, I may need to remove it later
         }
         encoded.push(0u8); // TODO: This is the TAG_BUFFER, I may need to remove it later
         encoded
@@ -97,10 +98,31 @@ pub fn build_fetch_response(buf: &mut Buf) -> Result<FetchResponse, io::Error> {
         for _ in 0..partitions_len {
             let partition = buf.read_i32();
             buf.skip(28); // TODO: skip 28 bytes for things we dont need right now
-            let error_code = match log_records.find_topic_by_id(topic_id) {
-                None => 100,
-                Some(_) => 0,
-            };
+            let (error_code, records): (i16, Option<Vec<u8>>) =
+                match log_records.find_topic_by_id(topic_id) {
+                    None => (100, None),
+                    Some(t) => {
+                        // let topic = log_records.find_topic(t.name.as_deref().unwrap());
+                        let topic_name = t.name.as_deref().unwrap();
+                        let partitions = log_records.find_partitions(topic_id);
+
+                        let mut partition_records: Vec<u8> = Vec::new();
+                        for p in partitions {
+                            let record_path = format!(
+                                "/tmp/kraft-combined-logs/{}-{}/00000000000000000000.log",
+                                topic_name, &p.partition_id
+                            );
+                            let bytes = read_file(&record_path);
+                            match bytes {
+                                Ok(b) => partition_records.extend_from_slice(&b),
+                                Err(e) => {
+                                    eprintln!("record not found {}", e);
+                                }
+                            }
+                        }
+                        (0, Some(partition_records))
+                    }
+                };
             partitions.push(Partition {
                 partition_index: partition,
                 error_code,
@@ -109,7 +131,7 @@ pub fn build_fetch_response(buf: &mut Buf) -> Result<FetchResponse, io::Error> {
                 log_start_offset: 0,
                 aborted_transactions: vec![],
                 preferred_read_replica: 0,
-                records: None,
+                records,
             })
         }
         responses.push(Response {
