@@ -144,4 +144,18 @@ impl ClusterMetadata {
             .filter(|p| p.topic_id == topic_id)
             .collect()
     }
+
+    pub fn find_topic_and_partition<'a>(
+        &'a self,
+        topic_name: &str,
+        partition_id: i32,
+    ) -> Option<(&'a TopicRecord, &'a PartitionRecord)> {
+        let topic = Self::find_topic(self, topic_name)?;
+        let partition = self
+            .partitions
+            .iter()
+            .find(|p| p.topic_id == topic.topic_id && p.partition_id == partition_id);
+
+        Some((topic, partition?))
+    }
 }
