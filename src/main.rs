@@ -6,6 +6,7 @@ mod dispatch;
 mod encoder;
 mod fetch;
 mod log_reader;
+mod produce;
 mod stream;
 
 use crate::stream::handle_stream;

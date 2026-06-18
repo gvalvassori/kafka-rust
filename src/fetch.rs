@@ -86,7 +86,7 @@ pub fn build_fetch_response(buf: &mut Buf) -> Result<FetchResponse, io::Error> {
         read_file("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")?;
     let log_records = read_records(bytes);
     let throttle_time_ms: i32 = 0; // TODO: placeholder
-    let error_code: i16 = 0; // TODO: this is a placeholder for now, replace
+    let error_code: i16 = 0;
     buf.skip(13); // TODO: remove. For now we skip everything till session_id in the request
     let session_id = buf.read_i32();
     buf.skip(4); // TODO: Skip session_epoch, not needed now
