@@ -1,6 +1,7 @@
 use crate::api_versions::ApiKeys;
 use crate::byte_cursor::Buf;
 use crate::encoder::Encode;
+use crate::log_reader::{read_file, read_records};
 use std::io;
 
 pub struct AbortedTransaction {
@@ -79,6 +80,9 @@ impl Encode for FetchResponse {
 }
 
 pub fn build_fetch_response(buf: &mut Buf) -> Result<FetchResponse, io::Error> {
+    let bytes =
+        read_file("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")?;
+    let log_records = read_records(bytes);
     let throttle_time_ms: i32 = 0; // TODO: placeholder
     let error_code: i16 = 0; // TODO: this is a placeholder for now, replace
     buf.skip(13); // TODO: remove. For now we skip everything till session_id in the request
@@ -93,9 +97,13 @@ pub fn build_fetch_response(buf: &mut Buf) -> Result<FetchResponse, io::Error> {
         for _ in 0..partitions_len {
             let partition = buf.read_i32();
             buf.skip(28); // TODO: skip 28 bytes for things we dont need right now
+            let error_code = match log_records.find_topic_by_id(topic_id) {
+                None => 100,
+                Some(_) => 0,
+            };
             partitions.push(Partition {
                 partition_index: partition,
-                error_code: 100,
+                error_code,
                 high_watermark: 0,
                 last_stable_offset: 0,
                 log_start_offset: 0,

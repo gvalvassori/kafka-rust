@@ -134,6 +134,10 @@ impl ClusterMetadata {
         self.topics.iter().find(|t| t.name.as_deref() == Some(name))
     }
 
+    pub fn find_topic_by_id<'a>(&'a self, topic_id: [u8; 16]) -> Option<&'a TopicRecord> {
+        self.topics.iter().find(|t| t.topic_id == topic_id)
+    }
+
     pub fn find_partitions<'a>(&'a self, topic_id: [u8; 16]) -> Vec<&'a PartitionRecord> {
         self.partitions
             .iter()
