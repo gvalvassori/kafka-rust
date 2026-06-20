@@ -100,13 +100,12 @@ impl Buf {
     }
 
     pub fn read_varint(&mut self) -> i64 {
-        let result: i64;
         let varint = self.read_varint_unsigned();
-        if varint % 2 == 0 {
-            result = (varint / 2) as i64;
+        let result = if varint.is_multiple_of(2) {
+            (varint / 2) as i64
         } else {
-            result = -((varint + 1) as i64) / 2;
-        }
+            -((varint + 1) as i64) / 2
+        };
         result
     }
 
